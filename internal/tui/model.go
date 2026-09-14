@@ -10,6 +10,7 @@ import (
 	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/player"
 	"github.com/bprendie/subweazl/internal/playqueue"
+	"github.com/bprendie/subweazl/internal/radio"
 	"github.com/bprendie/subweazl/internal/remote"
 	"github.com/bprendie/subweazl/internal/state"
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -59,11 +60,22 @@ const (
 	modeCuratorPrompt
 	modePlaylistDelete
 	modeVault
+	modeRadio
 )
 
 const searchPrompt = "stream > "
 
 type Model struct {
+	radioPending          bool
+	radioStations         []radio.Station
+	radioLoaded           bool
+	radioTab              string
+	radioInput            string
+	radioDraft            radio.Station
+	radioPlaying          *radio.Station
+	radioRequest          uint64
+	radioDirectoryRequest uint64
+
 	cfg                 config.Config
 	styles              styles
 	client              subsonic.Client
@@ -134,6 +146,7 @@ type Model struct {
 }
 
 type item struct {
+	radio           radio.Station
 	kind            string
 	title           string
 	desc            string
@@ -171,7 +184,7 @@ func (i item) Title() string {
 		return i.playlist.Name
 	case "private_playlist":
 		return i.privatePlaylist.Name
-	case "empty", "home", "queue":
+	case "empty", "home", "queue", "radio", "radio_action":
 		return i.title
 	default:
 		return i.track.Title
@@ -186,7 +199,7 @@ func (i item) Description() string {
 		return fmt.Sprintf("%d tracks", i.playlist.Count)
 	case "private_playlist":
 		return fmt.Sprintf("private vault playlist  %d tracks", len(i.privatePlaylist.Tracks))
-	case "empty", "home", "queue":
+	case "empty", "home", "queue", "radio", "radio_action":
 		return i.desc
 	default:
 		return fmt.Sprintf("%s  %s", i.track.Artist, i.track.Album)
@@ -211,7 +224,10 @@ type renamedMsg struct {
 	id   string
 	name string
 }
-type titleMsg struct{ title string }
+type titleMsg struct {
+	title   string
+	request uint64
+}
 type scrobbleMsg struct {
 	trackID   string
 	submitted bool
@@ -329,6 +345,8 @@ func newSpinner() spinner.Model {
 
 func (m *Model) refreshTitle() {
 	switch m.mode {
+	case modeRadio:
+		m.list.Title = "internet radio / " + m.radioTab
 	case modeHome:
 		m.list.Title = "home"
 	case modePlaylists:

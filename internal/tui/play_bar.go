@@ -21,6 +21,9 @@ func (m Model) playBar(width int) string {
 			state = "paused"
 			color = warning
 		}
+		if m.radioPlaying != nil {
+			cover = "LIVE"
+		}
 		title = m.playing.Title
 		if m.trackTitle != "" {
 			title = m.trackTitle

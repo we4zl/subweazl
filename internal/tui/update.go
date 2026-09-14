@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bprendie/subweazl/internal/radio"
 	"github.com/bprendie/subweazl/internal/remote"
 	"github.com/bprendie/subweazl/internal/subsonic"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -14,9 +15,18 @@ import (
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
+	case radioDirectoryMsg:
+		m.applyRadioDirectory(msg)
+	case radioResolvedMsg:
+		m.applyRadioResolved(msg)
 	case remote.Command:
 		var cmd tea.Cmd
+		if from, to, ok := msg.RadioMove(); ok {
+			m.moveHot4(from, to)
+		}
 		switch msg {
+		case remote.Radio1, remote.Radio2, remote.Radio3, remote.Radio4:
+			m, cmd = m.playRadioPreset(msg.RadioSlot())
 		case remote.Toggle:
 			m.togglePause()
 		case remote.Next:
@@ -158,7 +168,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.coverCache[msg.id] = msg.img
 		}
 	case titleMsg:
-		if msg.title != "" {
+		if m.radioPlaying != nil && radio.ValidateURL(msg.title) == nil {
+			break
+		}
+		if msg.request == m.radioRequest && m.isPlaying() && msg.title != "" {
 			m.trackTitle = msg.title
 			m.publishRemote(true)
 		}
@@ -169,17 +182,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		m.refreshTheme(time.Time(msg))
 		m.publishRemote()
-		if m.playerStarted && m.isPlaying() && !m.paused && !m.player.Running() {
-			finishedID := m.playing.ID
-			m.playerStarted = false
-			var cmd tea.Cmd
-			m, cmd = m.playNext()
-			cmds = append(cmds, m.scrobble(finishedID, true), cmd)
+		if m.playerStarted && !m.radioPending && m.isPlaying() && !m.paused && !m.player.Running() {
+			if m.radioPlaying != nil {
+				m.stop()
+				m.err = "radio stream ended or could not start; select the station to reconnect"
+			} else {
+				finishedID := m.playing.ID
+				m.playerStarted = false
+				var cmd tea.Cmd
+				m, cmd = m.playNext()
+				cmds = append(cmds, m.scrobble(finishedID, true), cmd)
+			}
 		}
 		m.visualizer.Step(m.isPlaying() && !m.paused && m.terminalVisible)
 		if m.isPlaying() && !m.paused && time.Time(msg).Sub(m.titlePoll) > 2*time.Second {
 			m.titlePoll = time.Time(msg)
-			cmds = append(cmds, fetchTitle(m.player))
+			cmds = append(cmds, fetchTitle(m.player, m.radioRequest))
 		}
 		cmds = append(cmds, m.tick())
 	}
@@ -229,6 +247,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m.startLLMConfig()
 	}
 	if m.input.Focused() {
+		if m.radioInput == "hot4" && len(msg.String()) == 1 && msg.String() >= "1" && msg.String() <= "4" {
+			m.input.SetValue(msg.String())
+			return m.submitRadioInput()
+		}
 		switch msg.String() {
 		case "enter":
 			return m.handleEnter()
@@ -260,6 +282,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		}
 		return m, noop
 	}
+	if m.mode == modeRadio {
+		next, cmd, handled := m.handleRadioKey(msg.String())
+		if handled {
+			return next, cmd
+		}
+	}
 	switch msg.String() {
 	case "q":
 		m.stop()
@@ -282,6 +310,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m, m.loadRandomAlbums()
 	case "4":
 		m.showQueue()
+		return m, noop
+	case "6":
+		m.showRadio("Presets")
 		return m, noop
 	case "5":
 		m.showPrivatePlaylists()
@@ -370,6 +401,9 @@ func (m Model) activateSidebarEntry() (Model, tea.Cmd) {
 	case "4":
 		m.showQueue()
 		return m, noop
+	case "6":
+		m.showRadio("Presets")
+		return m, noop
 	case "5":
 		m.showPrivatePlaylists()
 		return m, noop
@@ -397,6 +431,9 @@ func (m Model) activateSidebarEntry() (Model, tea.Cmd) {
 
 func (m Model) handleEnter() (Model, tea.Cmd) {
 	if m.input.Focused() {
+		if m.radioInput != "" {
+			return m.submitRadioInput()
+		}
 		if m.savingQueue {
 			name := m.input.Value()
 			if name == "" {
@@ -431,6 +468,10 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 	}
 	if it, ok := m.list.SelectedItem().(item); ok {
 		switch it.kind {
+		case "radio_action":
+			return m.radioAction(it.action)
+		case "radio":
+			return m.startRadio(it.radio)
 		case "home":
 			return m.handleHomeAction(it)
 		case "album":
@@ -456,7 +497,7 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 
 func (m Model) createStation() (Model, tea.Cmd) {
 	seed, ok := m.selectedTrack()
-	if !ok && m.playing != nil {
+	if !ok && m.playing != nil && m.radioPlaying == nil {
 		seed, ok = *m.playing, true
 	}
 	if !ok {

@@ -133,6 +133,9 @@ func (m Model) playQueueIndex(index int) (Model, tea.Cmd) {
 }
 
 func (m Model) playNext() (Model, tea.Cmd) {
+	if m.radioPlaying != nil {
+		return m.resumeRadioQueue()
+	}
 	current := m.queue.CurrentIndex()
 	var track subsonic.Track
 	var ok bool
@@ -165,6 +168,9 @@ func (m Model) playNext() (Model, tea.Cmd) {
 }
 
 func (m Model) playPrevious() (Model, tea.Cmd) {
+	if m.radioPlaying != nil {
+		return m.resumeRadioQueue()
+	}
 	var track subsonic.Track
 	var ok bool
 	if (m.playbackMode == playbackShuffle || m.playbackMode == playbackShuffleRepeat) && len(m.playHistory) > 0 {
@@ -318,7 +324,7 @@ func (m Model) selectedOrPlayingTrack() (subsonic.Track, bool) {
 	if track, ok := m.selectedTrack(); ok {
 		return track, true
 	}
-	if m.playing != nil {
+	if m.playing != nil && m.radioPlaying == nil {
 		return *m.playing, true
 	}
 	return subsonic.Track{}, false

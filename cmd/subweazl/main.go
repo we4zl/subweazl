@@ -66,7 +66,7 @@ func main() {
 
 func runRemote(args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("usage: subweazl remote <status|toggle|next|previous|stop|mode|quit>")
+		return fmt.Errorf("usage: subweazl remote <status|toggle|next|previous|stop|mode|radio-1|radio-2|radio-3|radio-4|quit>")
 	}
 	if args[0] == "status" {
 		snapshot, err := remote.ReadSnapshot()
@@ -81,6 +81,7 @@ func runRemote(args []string) error {
 		return nil
 	}
 	commands := map[string]remote.Command{
+		"radio-1": remote.Radio1, "radio-2": remote.Radio2, "radio-3": remote.Radio3, "radio-4": remote.Radio4,
 		"toggle": remote.Toggle, "play-pause": remote.Toggle,
 		"next": remote.Next, "previous": remote.Previous, "prev": remote.Previous,
 		"stop":    remote.Stop,
@@ -90,6 +91,12 @@ func runRemote(args []string) error {
 		"hidden":  remote.Hidden,
 	}
 	command, ok := commands[args[0]]
+	if !ok {
+		candidate := remote.Command(args[0])
+		if _, _, valid := candidate.RadioMove(); valid {
+			command, ok = candidate, true
+		}
+	}
 	if !ok {
 		return fmt.Errorf("unknown command %q", args[0])
 	}

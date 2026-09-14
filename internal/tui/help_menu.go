@@ -13,6 +13,15 @@ type helpAction struct {
 }
 
 func (m Model) helpMenu(width int) string {
+	if m.mode == modeRadio {
+		return renderHelpMenu(width, [][]helpAction{{
+			{"enter", "open/play", success}, {"/", "Icecast search", secondary},
+			{"H", "Hot 4 slot", accent}, {"ctrl+a", "save", success}, {"ctrl+p", "preset", accent},
+			{"ctrl+r", "rename", secondary}, {"delete", "remove", warning},
+			{"[/]", "reorder", secondary}, {"space", "pause", success},
+			{"n/p", "resume queue", warning}, {"s", "stop", warning}, {"?", "help", muted},
+		}})
+	}
 	return renderHelpMenu(width, [][]helpAction{
 		{{"tab", "pane", secondary}, {"enter", "open/play", success}, {"/", "search", secondary}, {"space", "play/pause", success}, {"p/n", "prev/next", warning}, {"m", "mode", accent}, {"g", "queue", warning}, {"G", "AI Mix", accent}, {"M", "Mood", success}, {"v", "copy playlist", warning}, {"?", "help", muted}, {"q", "quit", muted}},
 	})
@@ -34,6 +43,7 @@ func (m Model) fullHelpPopup(width, height int) string {
 		{"3", "random albums", success},
 		{"4", "queue", warning},
 		{"5", "private playlists", accent},
+		{"6", "internet radio", success},
 		{"/", "search", secondary},
 		{"left/esc", "back", muted},
 	}, panelWidth-4))
@@ -58,6 +68,16 @@ func (m Model) fullHelpPopup(width, height int) string {
 		{"x", "remove queue row", secondary},
 		{"c", "clear queue", warning},
 		{"u/d", "move queue row", success},
+	}, panelWidth-4))
+	b.WriteString("\n\n")
+	b.WriteString(renderHelpSection("Internet radio", []helpAction{
+		{"/", "Icecast search", secondary},
+		{"H", "assign Hot 4 slot", accent},
+		{"ctrl+a", "save station", success},
+		{"ctrl+p", "toggle preset", accent},
+		{"ctrl+r", "rename station", secondary},
+		{"delete", "delete station", warning},
+		{"[/]", "reorder stations", success},
 	}, panelWidth-4))
 	b.WriteString("\n\n")
 	b.WriteString(renderHelpSection("Playlists", []helpAction{

@@ -19,6 +19,7 @@ var sidebarNavEntries = []navEntry{
 	{"h", "Home", modeHome}, {"1", "Newest albums", modeNewest},
 	{"2", "Playlists", modePlaylists}, {"3", "Random albums", modeRandomAlbums},
 	{"4", "Queue", modeQueue}, {"5", "Private playlists", modePrivatePlaylists},
+	{"6", "Internet radio", modeRadio},
 	{"y", "Sync cache", modeHome}, {"g", "Generate queue", modeQueue},
 	{"G", "Generate AI Mix", modeQueue}, {"M", "Generate Mood", modePlaylists},
 	{"ctrl+l", "LLM setup", modeLLMProvider},

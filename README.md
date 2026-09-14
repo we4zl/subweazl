@@ -29,6 +29,8 @@ No cloud sync. No telemetry. Just your music, locked down tight.
 ## Own The Whole Weazl Stack
 
 * Browse albums, tracks, and playlists from your own Subsonic-compatible server.
+* Tune Internet radio with saved stations, eight presets, SomaFM/Icecast discovery,
+  and live song titles while keeping your library queue intact.
 * Stream through `mpv`; pause, skip, reorder, shuffle, repeat, and save queues
   without handing an engagement machine the aux cord.
 * Render pixel-art covers and a low-power visualizer directly in the TUI.
@@ -140,11 +142,23 @@ the selected theme.
 The bar widget is a passive MPRIS deck for the one running Subweazl process. It
 subscribes to native desktop media events instead of polling or launching a
 status command every second. It shows the current cut, opens playback controls,
-cycles modes, and launches Subweazl in the named `subweazl` tmux session. Close
+cycles modes, offers four radio preset buttons, and launches Subweazl in the named `subweazl` tmux session. Close
 the terminal and the interface detaches; playback, queue state, and the unlocked
 Weazl vault stay alive. Open Subweazl from the widget to reattach to that exact
 session. Detached, paused, and idle sessions fall back to the one-hertz clock;
 the visible low-power visualizer tops out at 15 Hz.
+
+For the same persistent session from a keyboard binding or another launcher,
+invoke the widget launcher directly:
+
+```sh
+~/.config/omarchy/plugins/io.github.bprendie.subweazl/widget/subweazl/launch.sh
+```
+
+The launcher creates or reattaches the named tmux session. Running the bare
+`subweazl` executable in an ordinary terminal is foreground mode: its lifetime
+follows that terminal. Close the terminal window to detach a widget-launched
+session; `q` and `ctrl+c` explicitly quit and lock, as in releases 1.0, 1.5, and 1.7.
 
 `Stop` kills playback only. **Quit and lock Weazl vault** stops playback, closes
 the encrypted store, clears the in-memory key, and ends the listening session.
@@ -170,6 +184,7 @@ subweazl remote previous
 subweazl remote next
 subweazl remote stop
 subweazl remote mode
+subweazl remote radio-1  # radio-1 through radio-4
 subweazl remote quit
 ```
 
@@ -196,6 +211,7 @@ Mouse clicks are dead here. The BBS relies on hotkeys.
 * `3`: Random albums
 * `4`: The Queue
 * `5`: Private vaulted playlists
+* `6`: Internet radio
 * `y`: Sync vaulted Subsonic metadata cache
 * `g`: Forge a deterministic queue from the vaulted cache
 * `G`: Build and immediately play a private AI Mix
@@ -243,6 +259,56 @@ Copies replace a case-insensitive same-named destination and never mutate the so
 * `tab`: Cycle input fields
 * `enter`: Test and save the connection
 * `ctrl+s`: Force save the connection payload
+
+## Internet Radio
+
+Press `6` or choose **Internet radio** in the sidebar. Select **Presets**, **My
+stations**, **SomaFM**, **Icecast**, or **Add URL**, then press Enter. The seven
+public presets match WeazlTunes web; your additions and changes are saved in the
+encrypted Subweazl vault. My stations includes all saved stations, including presets.
+
+In the radio section:
+
+* `enter`: Open a directory or play the selected station.
+* `/`: Search Icecast by station name or genre, with Radio Browser fallback.
+* `ctrl+a`: Save a directory station.
+* `ctrl+p`: Toggle a station's preset slot (maximum eight).
+* `H`, then `1`–`4`: Assign the highlighted station to a Hot 4 slot; `esc` cancels.
+* `ctrl+r`: Rename a saved station.
+* `delete`: Delete a saved station after entering `y` and pressing Enter.
+* `[` / `]`: Reorder stations in Presets or My stations.
+
+**Add URL** accepts HTTP/HTTPS stream, PLS, or M3U addresses and then asks for a
+name. A blank name uses the server hostname. Select the saved station to play it.
+PLS/M3U wrappers resolve before playback; mpv handles HLS. Space pauses/resumes,
+`s` stops, and live ICY titles appear when supplied by the station. Playback and
+metadata share the same mpv audio connection.
+
+Radio preserves the library queue and its current position. `n` or `p`, including
+media keys, returns to that queued track from its beginning; Enter on a queue row
+plays that row. Radio never enters Subsonic history, scrobbling, playlists, or
+Mood. An ended stream stops and reports an error; select it again to reconnect.
+The widget popup shows **Hot 4**, four explicit quick-access stations independent
+of the eight regular presets. In the TUI, highlight any radio station, press
+uppercase `H`, then `1`–`4`. The picker shows the current occupants. This also saves
+a directory station; a displaced station stays saved. Assigning a station already
+in Hot 4 swaps its old and new slots. Hot 4 badges appear beside saved stations.
+
+Drag a Hot 4 button onto another widget slot to move it there and shift the
+intervening slots. Dragging does not start playback; clicking plays the station.
+The new order is saved in the encrypted vault immediately. Empty slots accept
+drops. Deleting a saved station clears its Hot 4 slot; reordering regular presets
+or toggling their preset flag does not change Hot 4. Your previous first four
+presets are retained as the initial Hot 4 when upgrading.
+
+The widget watches display state only while open, without polling or exposing
+stream URLs. After updating an older running Subweazl, quit and reopen it once,
+then unlock the vault to activate Hot 4.
+
+Radio uses the existing Subweazl server setup and vault-unlock flow. It does not
+import personal settings from either Weazltunes application.
+
+See [the feature comparison and implementation notes](docs/internet-radio.md).
 
 ## The Vaulted State
 

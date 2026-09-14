@@ -6,17 +6,21 @@ import (
 
 	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/player"
+	"github.com/bprendie/subweazl/internal/security"
 	"github.com/bprendie/subweazl/internal/state"
 	"github.com/bprendie/subweazl/internal/subsonic"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m *Model) play(track subsonic.Track) tea.Cmd {
+	m.radioRequest++
+	m.radioPending = false
 	stream := m.client.StreamURL(track.ID)
 	if err := m.player.Play(stream); err != nil {
 		m.err = err.Error()
 		return noop
 	}
+	m.radioPlaying = nil
 	m.playing = &track
 	m.playSource = stream
 	m.paused = false
@@ -42,6 +46,9 @@ func (m *Model) play(track subsonic.Track) tea.Cmd {
 }
 
 func (m Model) scrobble(trackID string, submitted bool) tea.Cmd {
+	if trackID == "" {
+		return noop
+	}
 	return func() tea.Msg {
 		err := m.client.Scrobble(context.Background(), trackID, submitted)
 		return scrobbleMsg{trackID: trackID, submitted: submitted, err: err}
@@ -97,6 +104,9 @@ func (m *Model) togglePause() {
 }
 
 func (m *Model) stop() {
+	m.radioRequest++
+	m.radioPending = false
+	m.radioPlaying = nil
 	m.player.Stop()
 	m.playing = nil
 	m.playSource = ""
@@ -122,12 +132,12 @@ func (m Model) playingLabel() string {
 	return ""
 }
 
-func fetchTitle(player *player.Player) tea.Cmd {
+func fetchTitle(player *player.Player, request uint64) tea.Cmd {
 	return func() tea.Msg {
 		title, err := player.Title()
 		if err != nil {
 			return nil
 		}
-		return titleMsg{title: title}
+		return titleMsg{title: security.SanitizeNowPlaying(title), request: request}
 	}
 }

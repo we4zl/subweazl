@@ -43,6 +43,8 @@ func (m Model) updateFocused(msg tea.Msg) (Model, tea.Cmd) {
 func noop() tea.Msg { return nil }
 
 func (m *Model) resetInput() {
+	m.radioInput = ""
+	m.input.CharLimit = 240
 	m.input.SetValue("")
 	m.input.Prompt = searchPrompt
 	m.input.EchoMode = textinput.EchoNormal

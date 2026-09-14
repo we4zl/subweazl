@@ -26,6 +26,26 @@ BarWidget {
     ? String(settings.binaryPath) : defaultSubweazlBin
   readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
 
+  readonly property string stateHome: Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")
+  property var radioPresets: []
+  property bool radioAvailable: false
+  property string radioError: ""
+
+  function loadRadioPresets(raw) {
+    try {
+      var snapshot = JSON.parse(raw)
+      radioAvailable = snapshot.running === true && snapshot.hot4_ready === true && Array.isArray(snapshot.radio_presets)
+      radioPresets = radioAvailable ? snapshot.radio_presets.slice(0, 4) : []
+    } catch (error) {
+      radioAvailable = false
+      radioPresets = []
+    }
+  }
+
+  function presetAt(index) {
+    return radioPresets[index] || {name: "", active: false}
+  }
+
   function findSubweazlPlayer() {
     for (var i = 0; i < players.length; i++) {
       var candidate = players[i]
@@ -70,6 +90,7 @@ BarWidget {
 
   function runRemote(action) {
     if (actionProc.running) return
+    radioError = ""
     actionProc.command = [root.subweazlBin, "remote", action]
     actionProc.running = true
   }
@@ -93,6 +114,19 @@ BarWidget {
 
   Process {
     id: actionProc
+    stderr: StdioCollector {
+      onStreamFinished: root.radioError = this.text.trim()
+    }
+  }
+
+  FileView {
+    id: radioState
+    path: root.popupOpen && root.active ? root.stateHome + "/subweazl/remote.json" : ""
+    watchChanges: root.popupOpen && root.active
+    printErrors: false
+    onLoaded: root.loadRadioPresets(text())
+    onFileChanged: reload()
+    onLoadFailed: { root.radioAvailable = false; root.radioPresets = [] }
   }
 
   Process {
@@ -243,6 +277,46 @@ BarWidget {
           enabled: root.active && root.player.canControl && root.player.trackTitle !== ""
           opacity: enabled ? 1.0 : 0.4
           onClicked: root.runPlayback("stop")
+        }
+      }
+
+      Column {
+        width: parent.width
+        spacing: Style.space(6)
+
+        Text {
+          text: "Hot 4"
+          color: root.bar.foreground
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.bold: true
+        }
+
+        Hot4Selector {
+          width: parent.width
+          height: implicitHeight
+          presets: root.radioPresets
+          foreground: root.bar.foreground
+          accent: Color.accent
+          fontFamily: root.bar.fontFamily
+          fontSize: Style.font.bodySmall
+          spacing: Style.space(6)
+          buttonHeight: Style.space(36)
+          enabled: root.active && root.radioAvailable && !actionProc.running
+          opacity: enabled ? 1.0 : 0.4
+          onPlayRequested: function(slot) { root.runRemote("radio-" + slot) }
+          onMoveRequested: function(from, to) { root.runRemote("radio-move-" + from + "-" + to) }
+        }
+
+        Text {
+          width: parent.width
+          text: root.radioError || (root.radioAvailable
+            ? "Drag to reorder · select a station and press H in the TUI"
+            : "Reopen Subweazl and unlock the vault to load presets")
+          color: Qt.darker(root.bar.foreground, 1.3)
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WordWrap
         }
       }
 

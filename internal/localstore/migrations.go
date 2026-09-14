@@ -2,6 +2,7 @@ package localstore
 
 func (s *Store) Migrate() error {
 	stmts := []string{
+		`create table if not exists radio_stations (id integer primary key check (id = 1), payload text not null)`,
 		`create table if not exists vault (
 			id integer primary key check (id = 1),
 			password_hash text not null,

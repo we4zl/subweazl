@@ -24,6 +24,16 @@ func (m *Model) publishRemote(force ...bool) {
 		return
 	}
 	snapshot := remote.Snapshot{Running: true, State: "idle", PlaybackMode: m.playbackModeLabel()}
+	if m.loadRadioStations() == nil {
+		snapshot.Hot4Ready = true
+		for _, station := range m.radioStations {
+			if station.HotSlot < 1 || station.HotSlot > 4 {
+				continue
+			}
+			snapshot.RadioPresets[station.HotSlot-1] = remote.RadioPreset{Name: station.Name, Active: m.radioPlaying != nil && m.radioPlaying.URL == station.URL}
+		}
+
+	}
 	if m.playing != nil {
 		snapshot.State = "playing"
 		if m.paused {

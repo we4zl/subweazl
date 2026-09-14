@@ -5,12 +5,17 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 type Command string
 
 const (
+	Radio1    Command = "radio-1"
+	Radio2    Command = "radio-2"
+	Radio3    Command = "radio-3"
+	Radio4    Command = "radio-4"
 	Toggle    Command = "toggle"
 	Next      Command = "next"
 	Previous  Command = "previous"
@@ -21,15 +26,45 @@ const (
 	Hidden    Command = "hidden"
 )
 
+type RadioPreset struct {
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
+}
+
+func (c Command) RadioSlot() int {
+	switch c {
+	case Radio1:
+		return 1
+	case Radio2:
+		return 2
+	case Radio3:
+		return 3
+	case Radio4:
+		return 4
+	}
+	return 0
+}
+
+func (c Command) RadioMove() (int, int, bool) {
+	parts := strings.Split(string(c), "-")
+	if len(parts) != 4 || parts[0] != "radio" || parts[1] != "move" || len(parts[2]) != 1 || len(parts[3]) != 1 {
+		return 0, 0, false
+	}
+	from, to := int(parts[2][0]-'0'), int(parts[3][0]-'0')
+	return from, to, from >= 1 && from <= 4 && to >= 1 && to <= 4
+}
+
 type Snapshot struct {
-	Running      bool      `json:"running"`
-	State        string    `json:"state"`
-	Title        string    `json:"title,omitempty"`
-	Artist       string    `json:"artist,omitempty"`
-	Album        string    `json:"album,omitempty"`
-	Duration     int       `json:"duration,omitempty"`
-	PlaybackMode string    `json:"playback_mode"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	Hot4Ready    bool           `json:"hot4_ready"`
+	RadioPresets [4]RadioPreset `json:"radio_presets"`
+	Running      bool           `json:"running"`
+	State        string         `json:"state"`
+	Title        string         `json:"title,omitempty"`
+	Artist       string         `json:"artist,omitempty"`
+	Album        string         `json:"album,omitempty"`
+	Duration     int            `json:"duration,omitempty"`
+	PlaybackMode string         `json:"playback_mode"`
+	UpdatedAt    time.Time      `json:"updated_at"`
 }
 
 const staleAfter = 75 * time.Second

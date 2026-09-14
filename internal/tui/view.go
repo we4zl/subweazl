@@ -109,6 +109,9 @@ func (m Model) statusLine() string {
 		}
 		return m.styles.status.Render(m.spinner.View() + " " + ansi.Wordwrap(status, max(20, m.width-6), " /_-"))
 	}
+	if m.radioInput != "" || m.radioPending {
+		return m.styles.status.Render(ansi.Wordwrap(m.status, max(20, m.width-4), " /_-"))
+	}
 	if m.isPlaying() {
 		state := "now: "
 		if m.paused {

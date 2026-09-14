@@ -169,6 +169,7 @@ install_widget() {
   mkdir -p "$PLUGIN_DIR/widget/subweazl"
   install -m644 "$REPO_ROOT/manifest.json" "$PLUGIN_DIR/manifest.json"
   rm -f -- "$PLUGIN_DIR/widget/subweazl/Model.js"
+  install -m644 "$PLUGIN_SOURCE_DIR/Hot4Selector.qml" "$PLUGIN_DIR/widget/subweazl/Hot4Selector.qml"
   install -m644 "$PLUGIN_SOURCE_DIR/BarWidget.qml" "$PLUGIN_DIR/widget/subweazl/BarWidget.qml"
   install -m755 "$PLUGIN_SOURCE_DIR/launch.sh" "$PLUGIN_DIR/widget/subweazl/launch.sh"
   omarchy plugin validate "$PLUGIN_DIR"

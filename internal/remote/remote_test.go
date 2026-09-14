@@ -10,7 +10,7 @@ import (
 )
 
 func TestRemoteCommandsAreValid(t *testing.T) {
-	for _, command := range []Command{Toggle, Next, Previous, Stop, CycleMode, Quit, Visible, Hidden} {
+	for _, command := range []Command{Toggle, Next, Previous, Stop, CycleMode, Quit, Visible, Hidden, Radio1, Radio2, Radio3, Radio4} {
 		if !validCommand(command) {
 			t.Fatalf("command %q should be accepted", command)
 		}
@@ -76,5 +76,32 @@ func TestUnixTransportDeliversCommandAndRejectsSecondServer(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("command was not delivered")
+	}
+}
+
+func TestRadioCommandsRejectOutOfRangeSlots(t *testing.T) {
+	for _, cmd := range []Command{"radio-0", "radio-5", "radio--1", "radio-1 extra"} {
+		if validCommand(cmd) || cmd.RadioSlot() != 0 {
+			t.Fatalf("accepted %q", cmd)
+		}
+	}
+	for i, cmd := range []Command{Radio1, Radio2, Radio3, Radio4} {
+		if cmd.RadioSlot() != i+1 {
+			t.Fatalf("wrong slot for %q", cmd)
+		}
+	}
+}
+
+func TestRadioMoveCommandValidation(t *testing.T) {
+	for _, c := range []Command{"radio-move-1-4", "radio-move-4-2", "radio-move-2-2"} {
+		from, to, ok := c.RadioMove()
+		if !ok || from < 1 || to > 4 || !validCommand(c) {
+			t.Fatal("valid move rejected", c)
+		}
+	}
+	for _, c := range []Command{"radio-move-0-2", "radio-move-2-5", "radio-move-11-2", "radio-move-1-2-extra", "radio-move--1-2"} {
+		if _, _, ok := c.RadioMove(); ok || validCommand(c) {
+			t.Fatal("invalid move accepted", c)
+		}
 	}
 }

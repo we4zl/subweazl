@@ -66,6 +66,10 @@ func (m Model) generateLLMQueue() (Model, tea.Cmd) {
 }
 
 func (m Model) generateMoodPlaylist() (Model, tea.Cmd) {
+	if m.radioPlaying != nil {
+		m.err = "resume a library track before creating Mood"
+		return m, noop
+	}
 	seed, ok := m.moodSeed()
 	if !ok {
 		m.err = "play or queue a track before creating Mood"
@@ -542,7 +546,7 @@ func curatorPlaylistLimit(mode curator.Mode) int {
 
 func (m Model) applyLLMQueue(msg llmQueueMsg) Model {
 	snapshot := playqueue.Snapshot{Tracks: msg.result.Tracks, Current: 0}
-	if msg.request.Destination == curatorDestinationServer && m.playing != nil {
+	if msg.request.Destination == curatorDestinationServer && m.playing != nil && m.radioPlaying == nil {
 		current := -1
 		for i, track := range snapshot.Tracks {
 			if track.ID == m.playing.ID {
@@ -744,7 +748,7 @@ func (m *Model) spliceCuratorTracks() {
 	}
 	old := m.queue.Tracks()
 	current := m.queue.CurrentIndex()
-	if m.playing != nil {
+	if m.playing != nil && m.radioPlaying == nil {
 		for i, track := range old {
 			if track.ID == m.playing.ID {
 				current = i
@@ -755,7 +759,7 @@ func (m *Model) spliceCuratorTracks() {
 	var prefix []subsonic.Track
 	if current >= 0 && current < len(old) {
 		prefix = append(prefix, old[:current+1]...)
-	} else if m.playing != nil {
+	} else if m.playing != nil && m.radioPlaying == nil {
 		prefix = append(prefix, *m.playing)
 		current = 0
 	}
