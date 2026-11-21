@@ -323,3 +323,7 @@ The local vault is not just a database; it is the entire memory of your session.
   never leaves the vault.
 
 Weaz the juice.
+
+## WEAZL and WE4ZL branding
+
+Forking or reusing code does not grant permission to brand or market your own product with the WEAZL™ or WE4ZL™ wordmarks or the weazl head logo. See the [trademark and artwork notice](TRADEMARKS.md).
